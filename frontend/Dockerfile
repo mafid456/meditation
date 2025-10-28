@@ -1,27 +1,22 @@
-# ---------- Stage 1: Build ----------
-FROM node:18-alpine AS build
-
-WORKDIR /app
-
-# Copy dependency files first (for better caching)
-COPY package*.json yarn.lock ./
+# Base image with Node and Java (for Android build)
+FROM openjdk:17-jdk-slim
 
 # Install dependencies
+RUN apt-get update && apt-get install -y curl unzip git && \
+    curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g yarn && \
+    apt-get clean
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
-# Copy source code and build
+# Copy source code
 COPY . .
-RUN yarn build
 
-# ---------- Stage 2: Serve ----------
-FROM nginx:alpine
-
-# Copy compiled app to nginx html directory
-COPY --from=build /app/build /usr/share/nginx/html
-
-# Copy custom nginx config (optional)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-
+# Default command (you can change it to build your Android APK)
+CMD ["yarn", "android"]
