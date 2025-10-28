@@ -1,8 +1,8 @@
-name: Fullstack App CI/CD
+name: Fullstack App CI/CD (React Native + NestJS)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
 
 jobs:
@@ -13,51 +13,66 @@ jobs:
       DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
       DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
       BACKEND_IMAGE: shaikmafidbasha/backend-app
-      FRONTEND_IMAGE: shaikmafidbasha/frontend-app
 
     steps:
-      # 🧾 Checkout repo
+      # 🛠️ Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 🛠️ Build Backend
-      - name: Install & build backend
+      # 🧩 Setup Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # ⚙️ Build backend
+      - name: Build backend (NestJS)
         working-directory: ./backend
         run: |
-          echo "Building backend..."
           yarn install --frozen-lockfile
           yarn build
 
-      # 🧱 Build Frontend
-      - name: Install & build frontend
-        working-directory: ./frontend
-        run: |
-          echo "Building frontend..."
-          yarn install --frozen-lockfile
-          yarn build
-
-      # 🐳 Docker Login
+      # 🐳 Login to Docker Hub
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      # 🐳 Build & Push Backend
-      - name: Build and push backend Docker image
+      # 🐳 Build & Push backend Docker image
+      - name: Build & push backend image
         working-directory: ./backend
         run: |
-          echo "Pushing backend image..."
           docker build -t $BACKEND_IMAGE:latest .
           docker push $BACKEND_IMAGE:latest
 
-      # 🐳 Build & Push Frontend
-      - name: Build and push frontend Docker image
-        working-directory: ./frontend
-        run: |
-          echo "Pushing frontend image..."
-          docker build -t $FRONTEND_IMAGE:latest .
-          docker push $FRONTEND_IMAGE:latest
+  build-android-apk:
+    runs-on: ubuntu-latest
 
-      # ✅ Optional — Deploy to EKS
-      # - name: Deploy to Kubernetes
-      #   run: |
-      #     aws eks update-kubeconfig --name jenkins-eks-Cluster --region ap-south-1
-      #     kubectl apply -f k8s/
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Build Android APK
+        working-directory: ./frontend/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
