@@ -1,22 +1,13 @@
-# Base image with Node and Java (for Android build)
-FROM openjdk:17-jdk-slim
-
-# Install dependencies
-RUN apt-get update && apt-get install -y curl unzip git && \
-    curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g yarn && \
-    apt-get clean
-
-# Set working directory
+# ---------- Stage 1: Build React app ----------
+FROM node:18-alpine AS build
 WORKDIR /app
-
-# Copy package files and install dependencies
 COPY package*.json yarn.lock ./
 RUN yarn install --frozen-lockfile
-
-# Copy source code
 COPY . .
+RUN yarn build
 
-# Default command (you can change it to build your Android APK)
-CMD ["yarn", "android"]
+# ---------- Stage 2: Serve with Nginx ----------
+FROM nginx:alpine
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
