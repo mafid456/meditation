@@ -17,43 +17,49 @@ jobs:
       FRONTEND_IMAGE: shaikmafidbasha/frontend-app
 
     steps:
-      - name: Checkout code
+      # 🛠️ Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🧱 Backend setup
-      - name: Install backend dependencies
+      # 🧱 Backend setup (NestJS)
+      - name: Install and build backend
         working-directory: ./backend
         run: |
           yarn install --frozen-lockfile
-          yarn build
+          if yarn run | grep -q "build"; then
+            yarn build
+          else
+            echo "No build script found, skipping build step"
+          fi
 
-      # 🌐 Frontend setup
+      # 📱 Frontend setup (React Native)
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: |
           yarn install --frozen-lockfile
-          yarn build
+          echo "Skipping yarn build (React Native project)"
 
       # 🐳 Login to Docker Hub
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      # 🐳 Build & push backend image
+      # 🐳 Build and push backend image
       - name: Build and push backend Docker image
         working-directory: ./backend
         run: |
           docker build -t $BACKEND_IMAGE:latest .
           docker push $BACKEND_IMAGE:latest
 
-      # 🐳 Build & push frontend image
+      # 🐳 Build and push frontend image
       - name: Build and push frontend Docker image
         working-directory: ./frontend
         run: |
           docker build -t $FRONTEND_IMAGE:latest .
           docker push $FRONTEND_IMAGE:latest
 
-      # ✅ (Optional) Deploy to EKS/EC2 etc.
+      # ✅ Optional — Deploy to EKS (uncomment if you want)
       # - name: Deploy to Kubernetes
       #   run: |
       #     aws eks update-kubeconfig --name your-cluster --region ap-south-1
       #     kubectl apply -f k8s/
+
