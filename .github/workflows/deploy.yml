@@ -2,8 +2,7 @@ name: Fullstack App CI/CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
 
 jobs:
@@ -17,35 +16,48 @@ jobs:
       FRONTEND_IMAGE: shaikmafidbasha/frontend-app
 
     steps:
-      - name: Checkout repository
+      # 🧾 Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 🧱 Build Backend (NestJS)
-      - name: Install and build backend
+      # 🛠️ Build Backend
+      - name: Install & build backend
         working-directory: ./backend
         run: |
+          echo "Building backend..."
           yarn install --frozen-lockfile
-          if yarn run | grep -q "build"; then
-            yarn build
-          else
-            echo "No build script found, skipping build step"
-          fi
+          yarn build
 
-      # 🐳 Login to Docker Hub
-      - name: Log in to Docker Hub
+      # 🧱 Build Frontend
+      - name: Install & build frontend
+        working-directory: ./frontend
+        run: |
+          echo "Building frontend..."
+          yarn install --frozen-lockfile
+          yarn build
+
+      # 🐳 Docker Login
+      - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      # 🐳 Build and push backend image
+      # 🐳 Build & Push Backend
       - name: Build and push backend Docker image
         working-directory: ./backend
         run: |
+          echo "Pushing backend image..."
           docker build -t $BACKEND_IMAGE:latest .
           docker push $BACKEND_IMAGE:latest
 
-      # 🧱 Build frontend (React Native)
+      # 🐳 Build & Push Frontend
       - name: Build and push frontend Docker image
         working-directory: ./frontend
         run: |
-          echo "Building React Native app (no web build)"
+          echo "Pushing frontend image..."
           docker build -t $FRONTEND_IMAGE:latest .
           docker push $FRONTEND_IMAGE:latest
+
+      # ✅ Optional — Deploy to EKS
+      # - name: Deploy to Kubernetes
+      #   run: |
+      #     aws eks update-kubeconfig --name jenkins-eks-Cluster --region ap-south-1
+      #     kubectl apply -f k8s/
