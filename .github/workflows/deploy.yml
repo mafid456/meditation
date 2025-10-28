@@ -1,0 +1,59 @@
+name: Fullstack App CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+      DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+      BACKEND_IMAGE: shaikmafidbasha/backend-app
+      FRONTEND_IMAGE: shaikmafidbasha/frontend-app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 🧱 Backend setup
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+
+      # 🌐 Frontend setup
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+
+      # 🐳 Login to Docker Hub
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      # 🐳 Build & push backend image
+      - name: Build and push backend Docker image
+        working-directory: ./backend
+        run: |
+          docker build -t $BACKEND_IMAGE:latest .
+          docker push $BACKEND_IMAGE:latest
+
+      # 🐳 Build & push frontend image
+      - name: Build and push frontend Docker image
+        working-directory: ./frontend
+        run: |
+          docker build -t $FRONTEND_IMAGE:latest .
+          docker push $FRONTEND_IMAGE:latest
+
+      # ✅ (Optional) Deploy to EKS/EC2 etc.
+      # - name: Deploy to Kubernetes
+      #   run: |
+      #     aws eks update-kubeconfig --name your-cluster --region ap-south-1
+      #     kubectl apply -f k8s/
