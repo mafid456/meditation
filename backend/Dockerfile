@@ -1,20 +1,16 @@
 # ---------- Stage 1: Build ----------
-FROM node:18-alpine AS builder
-
+FROM node:18-alpine AS build
 WORKDIR /app
-COPY package*.json ./
-RUN yarn install
+COPY package*.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 COPY . .
 RUN yarn build
 
 # ---------- Stage 2: Run ----------
 FROM node:18-alpine
-
 WORKDIR /app
-COPY package*.json ./
-RUN yarn install --production
-
-# Copy only the compiled code from builder
-COPY --from=builder /app/dist ./dist
-
+COPY --from=build /app/dist ./dist
+COPY package*.json yarn.lock ./
+RUN yarn install --production --frozen-lockfile
+EXPOSE 3000
 CMD ["node", "dist/main.js"]
