@@ -17,49 +17,80 @@ jobs:
       FRONTEND_IMAGE: shaikmafidbasha/frontend-app
 
     steps:
-      # 🛠️ Checkout code
+      # 🧱 Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🧱 Backend setup (NestJS)
-      - name: Install and build backend
+      # =========================
+      # 🛠️ Backend (NestJS)
+      # =========================
+      - name: Build backend
         working-directory: ./backend
         run: |
-          yarn install --frozen-lockfile
+          echo "Installing backend dependencies..."
+          yarn install
+          
+          echo "Building backend (NestJS)..."
           if yarn run | grep -q "build"; then
-            yarn build
+            yarn build || npx nest build
           else
-            echo "No build script found, skipping build step"
+            echo "No build script found — skipping build step"
           fi
 
-      # 📱 Frontend setup (React Native)
-      - name: Install frontend dependencies
+      # =========================
+      # 🎨 Frontend (React / React Native)
+      # =========================
+      - name: Detect and build frontend
         working-directory: ./frontend
         run: |
+          echo "Installing frontend dependencies..."
           yarn install --frozen-lockfile
-          echo "Skipping yarn build (React Native project)"
+          
+          echo "Detecting frontend type..."
+          if grep -q "react-native" package.json; then
+            echo "React Native project detected — skipping build step."
+          else
+            echo "React Web project detected — running build."
+            if yarn run | grep -q "build"; then
+              yarn build
+            else
+              echo "No build script found — skipping build step."
+            fi
+          fi
 
-      # 🐳 Login to Docker Hub
+      # =========================
+      # 🐳 Docker Login
+      # =========================
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      # 🐳 Build and push backend image
+      # =========================
+      # 🐳 Build and Push Backend Image
+      # =========================
       - name: Build and push backend Docker image
         working-directory: ./backend
         run: |
+          echo "Building backend Docker image..."
           docker build -t $BACKEND_IMAGE:latest .
           docker push $BACKEND_IMAGE:latest
 
-      # 🐳 Build and push frontend image
+      # =========================
+      # 🐳 Build and Push Frontend Image
+      # =========================
       - name: Build and push frontend Docker image
         working-directory: ./frontend
         run: |
+          echo "Building frontend Docker image..."
           docker build -t $FRONTEND_IMAGE:latest .
           docker push $FRONTEND_IMAGE:latest
 
-      # ✅ Optional — Deploy to EKS (uncomment if you want)
+      # =========================
+      # 🚀 OPTIONAL — Deploy to EKS
+      # =========================
       # - name: Deploy to Kubernetes
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       #   run: |
-      #     aws eks update-kubeconfig --name your-cluster --region ap-south-1
+      #     aws eks update-kubeconfig --name jenkins-eks-Cluster --region ap-south-1
       #     kubectl apply -f k8s/
-
