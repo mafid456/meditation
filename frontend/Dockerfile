@@ -1,13 +1,15 @@
-# ---------- Stage 1: Build React app ----------
-FROM node:18-alpine AS build
+# React Native build environment
+FROM node:18-bullseye
+
 WORKDIR /app
 COPY package*.json yarn.lock ./
-RUN yarn install --frozen-lockfile
-COPY . .
-RUN yarn build
+RUN yarn install
 
-# ---------- Stage 2: Serve with Nginx ----------
-FROM nginx:alpine
-COPY --from=build /app/build /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Install Android SDK (optional: only if building APK)
+RUN apt-get update && apt-get install -y openjdk-11-jdk android-sdk
+
+COPY . .
+
+# Run Metro bundler (React Native dev server)
+EXPOSE 8081
+CMD ["yarn", "start"]
